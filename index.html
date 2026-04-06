@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flint — Expense Tracker Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0ede8; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 2rem 1rem; }
+  input, select, button { font-family: inherit; outline: none; }
+  input, select { display: block; width: 100%; padding: 10px 12px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; color: #1a1a1a; }
+  input:focus, select:focus { border-color: #888; }
+  button { border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #1a1a1a; cursor: pointer; font-size: 13px; }
+  button:hover { background: #f5f5f5; }
+  ::-webkit-scrollbar { width: 0; }
+ 
+  /* Color tokens */
+  .success-bg  { background: #eaf3de; }
+  .danger-bg   { background: #fcebeb; }
+  .info-bg     { background: #e6f1fb; }
+  .warning-bg  { background: #faeeda; }
+  .success-txt { color: #3b6d11; }
+  .danger-txt  { color: #a32d2d; }
+  .info-txt    { color: #185fa5; }
+  .warning-txt { color: #854f0b; }
+  .muted       { color: #888; }
+  .hint        { color: #bbb; }
+</style>
+</head>
+<body>
+ 
+<div style="width:375px; height:760px; background:#fff; border-radius:40px; border:0.5px solid #ddd; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 8px 40px rgba(0,0,0,0.12);">
+ 
+  <!-- Status bar -->
+  <div style="padding:14px 28px 0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+    <span style="font-size:12px; font-weight:500; font-family:monospace; color:#1a1a1a;">9:41</span>
+    <span style="font-size:14px; font-weight:500; color:#1a1a1a; letter-spacing:0.08em;">FLINT</span>
+    <span style="font-size:10px; color:#bbb;">●●●</span>
+  </div>
+ 
+  <!-- Balance -->
+  <div style="padding:14px 24px 14px; flex-shrink:0;">
+    <p style="font-size:11px; color:#bbb; margin:0 0 4px; text-transform:uppercase; letter-spacing:0.07em;">November 2024</p>
+    <div id="total-balance" style="font-size:32px; font-weight:500; font-family:monospace; color:#1a1a1a; margin-bottom:14px;">€0.00</div>
+    <div style="display:flex; gap:10px;">
+      <div class="success-bg" style="flex:1; border-radius:8px; padding:10px 14px;">
+        <p style="font-size:10px; color:#888; margin:0; text-transform:uppercase; letter-spacing:0.06em;">Income</p>
+        <p id="total-income" class="success-txt" style="font-size:16px; font-weight:500; margin:3px 0 0; font-family:monospace;">+€0</p>
+      </div>
+      <div class="danger-bg" style="flex:1; border-radius:8px; padding:10px 14px;">
+        <p style="font-size:10px; color:#888; margin:0; text-transform:uppercase; letter-spacing:0.06em;">Expenses</p>
+        <p id="total-expenses" class="danger-txt" style="font-size:16px; font-weight:500; margin:3px 0 0; font-family:monospace;">-€0</p>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- Tabs -->
+  <div style="display:flex; padding:0 24px; border-bottom:0.5px solid #eee; flex-shrink:0;">
+    <button id="tab-btn-transactions" onclick="switchTab('transactions')" style="flex:1; padding:10px 0; font-size:13px; background:none; border:none; border-bottom:2px solid #1a1a1a; color:#1a1a1a; font-weight:500;">Transactions</button>
+    <button id="tab-btn-ai" onclick="switchTab('ai')" style="flex:1; padding:10px 0; font-size:13px; background:none; border:none; border-bottom:2px solid transparent; color:#888;">Ask AI ✦</button>
+  </div>
+ 
+  <!-- Transactions panel -->
+  <div id="panel-transactions" style="flex:1; min-height:0; overflow-y:auto; padding:0 24px 16px;">
+    <div id="transaction-list" style="margin-top:8px;"></div>
+    <button onclick="showAddPanel()" style="width:100%; margin-top:12px; padding:14px; border-radius:12px; font-size:14px; border:0.5px dashed #ccc; cursor:pointer; color:#888; background:none;">+ Add transaction</button>
+  </div>
+ 
+  <!-- AI panel -->
+  <div id="panel-ai" style="flex:1; min-height:0; display:none; flex-direction:column;">
+    <div id="suggestion-chips" style="padding:14px 24px 4px; flex-shrink:0;">
+      <p style="font-size:10px; color:#bbb; margin:0 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Try asking</p>
+      <div style="display:flex; flex-wrap:wrap; gap:7px;">
+        <button onclick="quickQuestion('Why did I spend €500 more than last month?')" style="font-size:12px; padding:6px 12px; border-radius:20px; color:#888;">Why did I overspend? →</button>
+        <button onclick="quickQuestion('What are my top 3 spending categories this month?')" style="font-size:12px; padding:6px 12px; border-radius:20px; color:#888;">Top categories →</button>
+        <button onclick="quickQuestion('How can I realistically save €200 more next month?')" style="font-size:12px; padding:6px 12px; border-radius:20px; color:#888;">How to save more? →</button>
+      </div>
+    </div>
+    <div id="chat-messages" style="flex:1; min-height:0; overflow-y:auto; padding:12px 24px; display:flex; flex-direction:column; gap:10px;"></div>
+    <div style="padding:10px 24px 16px; border-top:0.5px solid #eee; display:flex; gap:8px; flex-shrink:0;">
+      <input id="chat-input" type="text" placeholder="Ask about your spending..." style="flex:1; font-size:13px;" onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()" id="send-btn" style="font-size:15px; padding:8px 14px;">↑</button>
+    </div>
+  </div>
+ 
+  <!-- Add transaction panel -->
+  <div id="panel-add" style="display:none; flex-direction:column; flex:1; min-height:0; padding:20px 24px; gap:14px; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <p style="font-size:16px; font-weight:500; color:#1a1a1a;">Add transaction</p>
+      <button onclick="showMainPanel()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#888; line-height:1; padding:0;">×</button>
+    </div>
+    <div>
+      <p style="font-size:12px; color:#888; margin:0 0 6px;">Amount (€)</p>
+      <input id="add-amount" type="number" placeholder="0.00" style="font-size:26px; font-family:monospace;" />
+    </div>
+    <div>
+      <p style="font-size:12px; color:#888; margin:0 0 6px;">Merchant / Description</p>
+      <input id="add-merchant" type="text" placeholder="e.g. Mercadona, Salary..." />
+    </div>
+    <div>
+      <p style="font-size:12px; color:#888; margin:0 0 6px;">Category</p>
+      <select id="add-category">
+        <option>Groceries</option><option>Restaurants</option><option>Transport</option>
+        <option>Shopping</option><option>Health</option><option>Sports</option>
+        <option>Subscriptions</option><option>Home</option><option>Clothing</option><option>Income</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:auto;">
+      <button onclick="addTransaction(-1)" style="flex:1; padding:14px; background:#fcebeb; border-color:#f09595; color:#a32d2d; font-weight:500; border-radius:12px;">Expense</button>
+      <button onclick="addTransaction(1)" style="flex:1; padding:14px; background:#eaf3de; border-color:#97c459; color:#3b6d11; font-weight:500; border-radius:12px;">Income</button>
+    </div>
+  </div>
+ 
+</div>
+ 
+<script>
+const transactions = [
+  { id: 1,  date: '2024-11-28', merchant: 'Mercadona',       category: 'Groceries',     amount: -87.50  },
+  { id: 2,  date: '2024-11-27', merchant: 'Salary',           category: 'Income',        amount: 3200.00 },
+  { id: 3,  date: '2024-11-26', merchant: 'La Tagliatella',   category: 'Restaurants',   amount: -42.00  },
+  { id: 4,  date: '2024-11-25', merchant: 'Netflix',           category: 'Subscriptions', amount: -17.99  },
+  { id: 5,  date: '2024-11-24', merchant: 'Decathlon',         category: 'Sports',        amount: -95.00  },
+  { id: 6,  date: '2024-11-23', merchant: 'Cabify',            category: 'Transport',     amount: -12.40  },
+  { id: 7,  date: '2024-11-22', merchant: 'El Corte Inglés',  category: 'Shopping',      amount: -156.00 },
+  { id: 8,  date: '2024-11-21', merchant: 'Spotify',           category: 'Subscriptions', amount: -9.99   },
+  { id: 9,  date: '2024-11-20', merchant: 'Consum',            category: 'Groceries',     amount: -54.30  },
+  { id: 10, date: '2024-11-19', merchant: 'Amazon',            category: 'Shopping',      amount: -67.80  },
+  { id: 11, date: '2024-11-18', merchant: 'Freelance',         category: 'Income',        amount: 800.00  },
+  { id: 12, date: '2024-11-17', merchant: 'Zara',              category: 'Clothing',      amount: -89.95  },
+  { id: 13, date: '2024-11-16', merchant: 'Repsol',            category: 'Transport',     amount: -55.00  },
+  { id: 14, date: '2024-11-15', merchant: 'Burger King',       category: 'Restaurants',   amount: -18.50  },
+  { id: 15, date: '2024-11-14', merchant: 'FitNow Gym',        category: 'Health',        amount: -45.00  },
+  { id: 16, date: '2024-11-13', merchant: 'Farmacia',          category: 'Health',        amount: -23.40  },
+  { id: 17, date: '2024-11-12', merchant: 'IKEA',              category: 'Home',          amount: -187.00 },
+  { id: 18, date: '2024-11-11', merchant: 'La Piazza',         category: 'Restaurants',   amount: -38.00  },
+];
+ 
+const catColors = {
+  Income: ['#eaf3de','#3b6d11'], Groceries: ['#eaf3de','#3b6d11'], Health: ['#eaf3de','#3b6d11'],
+  Restaurants: ['#fcebeb','#a32d2d'], Shopping: ['#fcebeb','#a32d2d'],
+  Subscriptions: ['#e6f1fb','#185fa5'], Sports: ['#e6f1fb','#185fa5'],
+  Transport: ['#faeeda','#854f0b'], Home: ['#faeeda','#854f0b'], Clothing: ['#faeeda','#854f0b'],
+};
+ 
+function computeTotals(txs) {
+  let income = 0, expenses = 0;
+  txs.forEach(t => t.amount > 0 ? income += t.amount : expenses += Math.abs(t.amount));
+  return { income, expenses, balance: income - expenses };
+}
+ 
+function renderTransactions() {
+  const { income, expenses, balance } = computeTotals(transactions);
+  document.getElementById('total-balance').textContent = '€' + balance.toFixed(2);
+  document.getElementById('total-income').textContent = '+€' + Math.round(income);
+  document.getElementById('total-expenses').textContent = '-€' + Math.round(expenses);
+  const grouped = {};
+  transactions.forEach(t => (grouped[t.date] = grouped[t.date] || []).push(t));
+  document.getElementById('transaction-list').innerHTML = Object.entries(grouped).map(([date, txs]) => {
+    const d = new Date(date + 'T12:00:00');
+    const label = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    return `<div style="margin-bottom:18px;">
+      <p style="font-size:10px;color:#bbb;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.07em;">${label}</p>
+      ${txs.map(t => {
+        const [bg, fg] = catColors[t.category] || ['#e6f1fb','#185fa5'];
+        return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:0.5px solid #f0f0f0;">
+          <div style="width:36px;height:36px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:${fg};flex-shrink:0;">${t.category[0]}</div>
+          <div style="flex:1;min-width:0;">
+            <p style="margin:0;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#1a1a1a;">${t.merchant}</p>
+            <p style="margin:2px 0 0;font-size:11px;color:#888;">${t.category}</p>
+          </div>
+          <span style="font-size:14px;font-weight:500;font-family:monospace;color:${t.amount>=0?'#3b6d11':'#1a1a1a'};flex-shrink:0;">${t.amount>=0?'+':''}€${Math.abs(t.amount).toFixed(2)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+ 
+function switchTab(tab) {
+  ['transactions','ai'].forEach(p => {
+    const panel = document.getElementById('panel-'+p);
+    const btn = document.getElementById('tab-btn-'+p);
+    const active = p === tab;
+    panel.style.display = active ? (p==='ai'?'flex':'block') : 'none';
+    btn.style.borderBottomColor = active ? '#1a1a1a' : 'transparent';
+    btn.style.color = active ? '#1a1a1a' : '#888';
+    btn.style.fontWeight = active ? '500' : '400';
+  });
+  document.getElementById('panel-add').style.display = 'none';
+}
+ 
+function showAddPanel() {
+  document.getElementById('panel-transactions').style.display = 'none';
+  document.getElementById('panel-add').style.display = 'flex';
+}
+ 
+function showMainPanel() {
+  document.getElementById('panel-add').style.display = 'none';
+  document.getElementById('panel-transactions').style.display = 'block';
+}
+ 
+function addTransaction(sign) {
+  const amount = parseFloat(document.getElementById('add-amount').value);
+  const merchant = document.getElementById('add-merchant').value.trim();
+  const category = document.getElementById('add-category').value;
+  if (!amount || !merchant) return;
+  const today = new Date().toISOString().split('T')[0];
+  transactions.unshift({ id: Date.now(), date: today, merchant, category, amount: sign * Math.abs(amount) });
+  document.getElementById('add-amount').value = '';
+  document.getElementById('add-merchant').value = '';
+  showMainPanel();
+  renderTransactions();
+}
+ 
+const chatHistory = [];
+ 
+function appendMessage(role, text, loading) {
+  const chips = document.getElementById('suggestion-chips');
+  if (chips) chips.style.display = 'none';
+  const el = document.createElement('div');
+  const isUser = role === 'user';
+  el.style.cssText = `max-width:86%;${isUser?'align-self:flex-end;':'align-self:flex-start;'}padding:10px 14px;border-radius:${isUser?'16px 16px 4px 16px':'16px 16px 16px 4px'};background:${isUser?'#e6f1fb':'#f5f5f5'};font-size:13px;line-height:1.5;color:${isUser?'#185fa5':'#1a1a1a'};`;
+  el.textContent = loading ? '...' : text;
+  if (loading) el.id = 'loading-bubble';
+  document.getElementById('chat-messages').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  return el;
+}
+ 
+function quickQuestion(q) {
+  document.getElementById('chat-input').value = q;
+  sendMessage();
+}
+ 
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.disabled = true;
+  document.getElementById('send-btn').disabled = true;
+  appendMessage('user', text);
+  const loadingEl = appendMessage('assistant', '', true);
+  chatHistory.push({ role: 'user', content: text });
+  const ctx = JSON.stringify(transactions.map(t => ({ date: t.date, merchant: t.merchant, category: t.category, amount: t.amount })));
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: `You are a personal finance assistant inside a mobile app called Flint. Be concise (max 90 words), warm, specific, and actionable. Reference actual numbers. No markdown.\n\nUser's November 2024 transactions:\n${ctx}\n\nOctober 2024 for comparison: income €3,200, expenses €1,180 (restaurants €85, groceries €124, shopping €210, subscriptions €28, transport €67, sports €45, health €23).`,
+        messages: chatHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.find(c => c.type === 'text')?.text || 'Something went wrong.';
+    loadingEl.id = '';
+    loadingEl.textContent = reply;
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch {
+    loadingEl.textContent = 'Connection error. Please try again.';
+  }
+  input.disabled = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+ 
+renderTransactions();
+</script>
+</body>
+</html>
